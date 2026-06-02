@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FIREBAL Web</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap');
+:root {
+  --bg:#0b0d12; --bg2:#111520; --bg3:#181e2e; --bg4:#1f2740;
+  --border:#242d42; --border2:#2e3a55;
+  --accent:#5be9b5; --accent2:#4d8ffa;
+  --warn:#f5c842; --err:#f0566a; --ok:#50e898;
+  --fg:#ccd6f0; --fg2:#7a8db5; --fg3:#4a5878;
+  --mono:'JetBrains Mono',monospace; --sans:'Inter',sans-serif;
+  --r:5px; --r2:9px;
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0 }
+html,body { height:100%; overflow:hidden }
+body { background:var(--bg); color:var(--fg); font-family:var(--sans); font-size:13px; line-height:1.5; display:flex; flex-direction:column }
+
+/* scrollbar */
+::-webkit-scrollbar { width:5px; height:5px }
+::-webkit-scrollbar-track { background:var(--bg2) }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px }
+
+/* header */
+header {
+  display:flex; align-items:center; gap:14px;
+  padding:0 20px; height:48px; flex-shrink:0;
+  background:linear-gradient(90deg,var(--bg2),#131b30);
+  border-bottom:1px solid var(--border);
+}
+.logo { font-family:var(--mono); font-size:14px; font-weight:600; color:var(--accent); letter-spacing:.05em }
+.logo em { color:var(--fg2); font-style:normal; font-weight:300 }
+.htag { font-size:11px; color:var(--fg3); padding:2px 7px; border:1px solid var(--border2); border-radius:3px; font-family:var(--mono) }
+.hsp { flex:1 }
+.health { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--fg3) }
+.hdot { width:7px; height:7px; border-radius:50%; background:var(--fg3); transition:background .3s }
+.hdot.ok  { background:var(--ok); box-shadow:0 0 6px var(--ok) }
+.hdot.err { background:var(--err) }
+
+/* layout */
+.layout { display:grid; grid-template-columns:320px 1fr; height:calc(100vh - 48px); overflow:hidden }
+
+/* queue panel */
+.qpanel { background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow:hidden }
+.qhead { padding:12px 14px 10px; font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--fg3); border-bottom:1px solid var(--border); flex-shrink:0; display:flex; align-items:center; gap:8px }
+.qcount { background:var(--bg4); color:var(--accent2); border-radius:10px; padding:1px 7px; font-size:10px }
+.qlist { flex:1; overflow-y:auto; padding:8px }
+.qempty { color:var(--fg3); font-size:12px; text-align:center; padding:40px 12px; font-family:var(--mono); line-height:2 }
+.jcard { padding:10px 11px; border-radius:var(--r2); border:1px solid var(--border); margin-bottom:5px; cursor:pointer; transition:border-color .15s,background .15s }
+.jcard:hover { border-color:var(--accent2); background:rgba(77,143,250,.04) }
+.jcard.sel { border-color:var(--accent); background:rgba(91,233,181,.05) }
+.jcard-top { display:flex; align-items:center; justify-content:space-between; gap:8px }
+.jname { font-family:var(--mono); font-size:11px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px }
+.badge { font-family:var(--mono); font-size:9px; font-weight:600; letter-spacing:.05em; padding:2px 7px; border-radius:3px; text-transform:uppercase }
+.bp { background:rgba(122,141,181,.12); color:var(--fg2) }
+.br { background:rgba(77,143,250,.15);  color:var(--accent2) }
+.bd { background:rgba(80,232,152,.15);  color:var(--ok) }
+.bf { background:rgba(240,86,106,.15);  color:var(--err) }
+.bc { background:rgba(50,60,90,.3);     color:var(--fg3) }
+.jmeta { font-family:var(--mono); font-size:10px; color:var(--fg3); margin-top:3px }
+.jprog { height:2px; background:var(--border); border-radius:1px; margin-top:7px }
+.jprogbar { height:100%; border-radius:1px; background:linear-gradient(90deg,var(--accent2),var(--accent)); transition:width .5s }
+.jbtns { display:flex; gap:5px; margin-top:7px }
+.btn-xs { padding:3px 8px; border-radius:4px; border:1px solid var(--border); background:transparent; color:var(--fg3); font-family:var(--mono); font-size:10px; cursor:pointer; transition:all .15s }
+.btn-xs:hover { border-color:var(--accent); color:var(--accent) }
+.btn-xs.dl { border-color:var(--ok); color:var(--ok) }
+.btn-xs.dl:hover { background:rgba(80,232,152,.1) }
+.btn-xs.rm:hover { border-color:var(--err); color:var(--err) }
+
+/* main panel — 3-row grid so submit bar is always visible */
+.mpanel { display:grid; grid-template-rows:auto 1fr auto; height:calc(100vh - 48px); overflow:hidden }
+
+/* tabs */
+.tabs { display:flex; border-bottom:1px solid var(--border); background:var(--bg2) }
+.tab { padding:11px 18px; font-family:var(--mono); font-size:11px; font-weight:500; color:var(--fg3); cursor:pointer; border:none; background:transparent; border-bottom:2px solid transparent; transition:all .15s; letter-spacing:.03em }
+.tab:hover { color:var(--fg) }
+.tab.on { color:var(--accent); border-bottom-color:var(--accent) }
+
+/* tab content — scrollable middle row */
+.tc { overflow-y:auto; min-height:0 }
+.tp { display:none; padding:20px 24px }
+.tp.on { display:block }
+
+/* form */
+.section { margin-bottom:22px }
+.stitle { font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--accent2); margin-bottom:12px; padding-bottom:5px; border-bottom:1px solid var(--border) }
+.frow { display:grid; grid-template-columns:180px 1fr; gap:10px; align-items:start; margin-bottom:9px }
+label { font-size:12px; color:var(--fg2); line-height:1.8 }
+label small { display:block; font-size:10px; color:var(--fg3); line-height:1.4 }
+input[type=text], input[type=number], select {
+  background:var(--bg3); border:1px solid var(--border); color:var(--fg);
+  border-radius:var(--r); padding:5px 9px; font-family:var(--mono); font-size:12px;
+  outline:none; transition:border-color .15s; width:100%
+}
+input:focus, select:focus { border-color:var(--accent2) }
+input[type=number] { width:90px }
+input[type=checkbox], input[type=radio] { accent-color:var(--accent) }
+.rg { display:flex; gap:14px; flex-wrap:wrap; padding-top:2px }
+.rg label { color:var(--fg); display:flex; align-items:center; gap:5px; cursor:pointer; font-size:12px }
+.row3 { display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+.row3 .lbl { font-size:11px; color:var(--fg3); white-space:nowrap }
+.row3 input[type=number] { width:75px }
+
+/* dropzone */
+.dz { border:2px dashed var(--border); border-radius:var(--r2); padding:18px; text-align:center; cursor:pointer; transition:all .2s; margin-bottom:6px }
+.dz:hover, .dz.over { border-color:var(--accent); background:rgba(91,233,181,.03) }
+.dz-icon { font-size:24px; opacity:.5; margin-bottom:4px }
+.dz-lbl { font-size:12px; color:var(--fg2) }
+.dz-file { font-family:var(--mono); font-size:11px; color:var(--accent); margin-top:3px }
+.dz-hint { font-size:10px; color:var(--fg3); margin-top:3px }
+
+/* channel table */
+.chtable { width:100%; border-collapse:collapse; font-size:11px; font-family:var(--mono) }
+.chtable th { text-align:left; padding:5px 7px; color:var(--fg3); border-bottom:1px solid var(--border); font-weight:500 }
+.chtable td { padding:4px 7px; border-bottom:1px solid rgba(36,45,66,.5) }
+.chtable input { width:75px }
+
+/* submit bar — always pinned at bottom (grid row 3) */
+.sbar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 20px; border-top:1px solid var(--border); background:var(--bg2) }
+.btn-submit { display:flex; align-items:center; gap:8px; padding:9px 22px; background:var(--accent); color:var(--bg); border:none; border-radius:var(--r); font-family:var(--mono); font-size:12px; font-weight:600; cursor:pointer; transition:all .15s }
+.btn-submit:hover { background:#7df5cc }
+.btn-submit:disabled { opacity:.35; cursor:not-allowed }
+.shint { font-size:11px; color:var(--fg3) }
+
+/* job detail */
+.jdetail { padding:18px 22px }
+.jdetail-head { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap }
+.jd-name { font-family:var(--mono); font-size:13px; font-weight:500 }
+.prog-wrap { margin-bottom:14px }
+.progbar { height:3px; background:var(--border); border-radius:2px }
+.progfill { height:100%; border-radius:2px; background:linear-gradient(90deg,var(--accent2),var(--accent)); transition:width .5s }
+.proglbl { font-family:var(--mono); font-size:10px; color:var(--fg3); margin-top:3px }
+.logbox { background:var(--bg); border:1px solid var(--border); border-radius:var(--r); height:420px; overflow-y:auto; padding:8px 10px; font-family:var(--mono); font-size:11px; line-height:1.75 }
+.logbox p { padding:0 }
+.l-err  { color:var(--err) }
+.l-ok   { color:var(--ok) }
+.l-head { color:var(--accent); font-weight:600 }
+.l-warn { color:var(--warn) }
+
+/* overlay */
+.overlay { display:none; position:fixed; inset:0; z-index:200; background:rgba(11,13,18,.88); backdrop-filter:blur(6px); align-items:center; justify-content:center; flex-direction:column; gap:14px }
+.overlay.on { display:flex }
+.spinner { width:36px; height:36px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite }
+@keyframes spin { to { transform:rotate(360deg) } }
+.overlay-txt { font-family:var(--mono); font-size:12px; color:var(--fg3) }
+
+/* toast */
+.toast { position:fixed; bottom:20px; right:20px; z-index:300; background:var(--bg3); border:1px solid var(--border); border-radius:var(--r); padding:9px 14px; font-family:var(--mono); font-size:11px; opacity:0; transition:opacity .3s; pointer-events:none }
+.toast.on  { opacity:1 }
+.toast.ok  { border-color:var(--ok);  color:var(--ok) }
+.toast.err { border-color:var(--err); color:var(--err) }
+
+.dim { color:var(--fg3); font-size:10px }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">FIREBAL<em>GUI</em></div>
+  <span class="htag">web</span>
+  <span style="color:var(--fg3);font-size:11px">GPU-accelerated 3D deconvolution</span>
+  <div class="hsp"></div>
+  <div class="health">
+    <div class="hdot" id="hdot"></div>
+    <span id="htext">connecting…</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ── Queue panel ─────────────────────────────────────────────── -->
+  <aside class="qpanel">
+    <div class="qhead">Queue <span class="qcount" id="qcount">0</span></div>
+    <div class="qlist" id="qlist">
+      <div class="qempty">No jobs yet.<br>Configure and submit.</div>
+    </div>
+  </aside>
+
+  <!-- ── Main panel ─────────────────────────────────────────────── -->
+  <main class="mpanel">
+
+    <!-- row 1: tabs -->
+    <div class="tabs">
+      <button class="tab on" data-t="files">Files</button>
+      <button class="tab" data-t="psf">PSF</button>
+      <button class="tab" data-t="algo">Algorithm</button>
+      <button class="tab" data-t="output">Output</button>
+      <button class="tab" data-t="detail">Job Detail</button>
+    </div>
+
+    <!-- row 2: scrollable content -->
+    <div class="tc">
+
+      <!-- ══════════════ FILES TAB ══════════════ -->
+      <div class="tp on" id="tp-files">
+
+        <div class="section">
+          <div class="stitle">Input files</div>
+          <div id="dzImg" class="dz" onclick="document.getElementById('fImg').click()">
+            <div class="dz-icon">🔬</div>
+            <div class="dz-lbl">Image TIFF — click or drop</div>
+            <div id="dzImgF" class="dz-file"></div>
+            <div class="dz-hint">ZYX / CZYX / TZCYX · multi-channel · time-series · 2D/3D</div>
+          </div>
+          <input type="file" id="fImg" accept=".tif,.tiff" style="display:none">
+
+          <div id="dzPsf" class="dz" onclick="document.getElementById('fPsf').click()">
+            <div class="dz-icon">🌀</div>
+            <div class="dz-lbl">PSF TIFF — click or drop (optional)</div>
+            <div id="dzPsfF" class="dz-file"></div>
+            <div class="dz-hint">Leave empty to generate PSF server-side from optical parameters</div>
+          </div>
+          <input type="file" id="fPsf" accept=".tif,.tiff" style="display:none">
+        </div>
+
+        <div class="section">
+          <div class="stitle">Stack layout</div>
+          <div class="frow">
+            <label>Axis order<small>fastest last · Fiji default: TZCYX</small></label>
+            <input type="text" id="dimOrder" value="TZCYX" maxlength="8" style="width:100px">
+          </div>
+          <div class="frow">
+            <label>Channels</label>
+            <div class="rg">
+              <label><input type="radio" name="chSel" value="all" checked> All channels</label>
+              <label><input type="radio" name="chSel" value="single"> Single:&nbsp;<input type="number" id="chIdx" value="0" min="0" style="width:55px"></label>
+            </div>
+          </div>
+          <div class="frow">
+            <label>Timepoints</label>
+            <div class="rg">
+              <label><input type="checkbox" id="allTp"> All timepoints</label>
+              <span style="color:var(--fg3);font-size:11px">or T =&nbsp;</span>
+              <input type="number" id="tpIdx" value="0" min="0" style="width:60px">
+            </div>
+          </div>
+          <div class="frow">
+            <label>Number of channels<small>for per-channel wavelength table</small></label>
+            <div class="row3">
+              <input type="number" id="nCh" value="1" min="1" max="16" style="width:60px" oninput="rebuildChTable()">
+              <button class="btn-xs" onclick="rebuildChTable()">Refresh</button>
+            </div>
+          </div>
+          <div id="chTableWrap"></div>
+        </div>
+
+      </div><!-- /files -->
+
+      <!-- ══════════════ PSF TAB ══════════════ -->
+      <div class="tp" id="tp-psf">
+
+        <div class="section">
+          <div class="stitle">PSF generation</div>
+          <p class="dim" style="margin-bottom:10px">Used when no PSF file is uploaded. PSF grid size is set automatically to match the tile size.</p>
+          <div class="frow">
+            <label>Modality</label>
+            <select id="psfModality" onchange="modalityChanged()">
+              <option value="widefield">Widefield</option>
+              <option value="confocal">Confocal</option>
+            </select>
+          </div>
+          <div class="frow">
+            <label>Voxel size (µm)</label>
+            <div class="row3">
+              <span class="lbl">dZ</span><input type="number" id="psfDz" value="0.250" step="0.005">
+              <span class="lbl">dY</span><input type="number" id="psfDy" value="0.108" step="0.005">
+              <span class="lbl">dX</span><input type="number" id="psfDx" value="0.108" step="0.005">
+            </div>
+          </div>
+        </div>
+
+        <!-- Confocal — shown only when modality = confocal -->
+        <div class="section" id="psfConfocal" style="display:none">
+          <div class="stitle">Confocal settings</div>
+          <div class="frow">
+            <label>Aperture size (µm)</label>
+            <input type="number" id="apSize" value="1.0" step="0.1" style="width:90px">
+          </div>
+          <div class="frow">
+            <label>
+              <input type="checkbox" id="aproxEx" checked onchange="aproxChanged()">
+              Approx excitation with emission PSF
+            </label>
+          </div>
+          <div class="frow" id="exWlRow" style="display:none">
+            <label>Excitation λ (µm)</label>
+            <input type="number" id="exWl" value="0.488" step="0.005" style="width:90px">
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="stitle">Emission channel</div>
+          <div class="frow">
+            <label>Wavelength (µm)</label>
+            <input type="number" id="emWl" value="0.520" step="0.005" style="width:90px">
+          </div>
+          <div class="frow">
+            <label>NA</label>
+            <input type="number" id="emNa" value="1.42" step="0.05" style="width:80px">
+          </div>
+          <div class="frow">
+            <label>n medium</label>
+            <input type="number" id="emN" value="1.516" step="0.01" style="width:80px">
+          </div>
+          <div class="frow">
+            <label>Spherical aberration<small>Z(4,0) coefficient</small></label>
+            <input type="number" id="emSphCoef" value="0.0" step="0.05" style="width:90px">
+          </div>
+          <div class="frow">
+            <label>Presets</label>
+            <div class="row3" style="flex-wrap:wrap">
+              <button class="btn-xs" onclick="applyEmPreset(0.405,1.20,1.33)">DAPI 405</button>
+              <button class="btn-xs" onclick="applyEmPreset(0.488,1.20,1.33)">GFP 488</button>
+              <button class="btn-xs" onclick="applyEmPreset(0.520,1.20,1.33)">FITC 520</button>
+              <button class="btn-xs" onclick="applyEmPreset(0.561,1.40,1.515)">mCherry 561</button>
+              <button class="btn-xs" onclick="applyEmPreset(0.640,1.40,1.515)">647 oil</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /psf -->
+
+      <!-- ══════════════ ALGORITHM TAB ══════════════ -->
+      <div class="tp" id="tp-algo">
+
+        <div class="section">
+          <div class="stitle">Tiling</div>
+          <p class="dim" style="margin-bottom:10px">Tile size is computed automatically from available GPU memory.</p>
+          <div class="frow">
+            <label>Enable tiling<small>for volumes larger than VRAM</small></label>
+            <label style="color:var(--fg);cursor:pointer">
+              <input type="checkbox" id="tilingEnabled" onchange="tilingChanged()"> Use tiled processing
+            </label>
+          </div>
+          <div id="tilingMargins" style="display:none">
+            <div class="frow">
+              <label>Margin Z / Y / X<small>tile overlap</small></label>
+              <div class="row3">
+                <span class="lbl">Z</span><input type="number" id="marginZ" value="16" min="0" max="128" style="width:65px">
+                <span class="lbl">Y</span><input type="number" id="marginY" value="16" min="0" max="128" style="width:65px">
+                <span class="lbl">X</span><input type="number" id="marginX" value="16" min="0" max="128" style="width:65px">
+              </div>
+            </div>
+          </div>
+          <div class="frow">
+            <label>Poisson pad Z / Y / X</label>
+            <div class="row3">
+              <span class="lbl">Z</span><input type="number" id="padZ" value="8" min="0" max="64" style="width:65px">
+              <span class="lbl">Y</span><input type="number" id="padY" value="8" min="0" max="64" style="width:65px">
+              <span class="lbl">X</span><input type="number" id="padX" value="8" min="0" max="64" style="width:65px">
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="stitle">Richardson-Lucy parameters</div>
+          <div class="frow">
+            <label>Iterations</label>
+            <input type="number" id="iters" value="2" min="1" max="500" style="width:80px">
+          </div>
+          <div class="frow">
+            <label>Wiener param Δ</label>
+            <input type="text" id="wiener" value="1e-4" style="width:100px">
+          </div>
+          <div class="frow">
+            <label>OTF threshold</label>
+            <input type="text" id="otfThres" value="1e-6" style="width:100px">
+          </div>
+          <div class="frow">
+            <label>Background α</label>
+            <input type="text" id="alpha" value="0.1" style="width:100px">
+          </div>
+          <div class="frow">
+            <label>Wiener adapt γ<small>0 = fixed</small></label>
+            <input type="text" id="gamma" value="0.0" style="width:100px">
+          </div>
+          <div class="frow">
+            <label>Upsample factor</label>
+            <input type="number" id="upsample" value="1.0" step="0.5" min="1" style="width:80px">
+          </div>
+        </div>
+
+      </div><!-- /algo -->
+
+      <!-- ══════════════ OUTPUT TAB ══════════════ -->
+      <div class="tp" id="tp-output">
+
+        <div class="section">
+          <div class="stitle">File</div>
+          <div class="frow">
+            <label>Filename</label>
+            <input type="text" id="outName" value="" placeholder="auto (input_deconv.tif)">
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="stitle">Bit depth</div>
+          <div class="frow">
+            <label>Depth</label>
+            <div class="rg">
+              <label><input type="radio" name="bitDepth" value="uint16" checked> uint16 (0–65535)</label>
+              <label><input type="radio" name="bitDepth" value="uint8"> uint8 (0–255)</label>
+              <label><input type="radio" name="bitDepth" value="float32"> float32 (raw)</label>
+            </div>
+          </div>
+          <p class="dim" style="margin-top:6px">
+            Integer output is min-max scaled after negative clipping. float32 is raw.<br>
+            Result saved as TZCYX hyperstack — Fiji-compatible.<br>
+            Voxel size is taken from PSF voxel size settings.
+          </p>
+        </div>
+
+      </div><!-- /output -->
+
+      <!-- ══════════════ JOB DETAIL TAB ══════════════ -->
+      <div class="tp" id="tp-detail">
+        <div id="detailWrap">
+          <p style="color:var(--fg3);font-family:var(--mono);font-size:12px;padding:40px 0">
+            Select a job from the queue to view its status and download the result.
+          </p>
+        </div>
+      </div>
+
+    </div><!-- /tc -->
+
+    <!-- row 3: submit bar — always visible -->
+    <div class="sbar">
+      <button class="btn-submit" id="btnSubmit" onclick="submitJob()" disabled>▶ &nbsp;Submit job</button>
+      <span class="shint" id="shint">Select an image file to start.</span>
+    </div>
+
+  </main>
+</div>
+
+<!-- overlay -->
+<div class="overlay" id="overlay">
+  <div class="spinner"></div>
+  <div class="overlay-txt" id="overlayTxt">Uploading…</div>
+</div>
+
+<!-- toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── Config ── */
+const PROXY_BASE = "";
+
+/* ── State ── */
+let selectedJob = null;
+let pollTimer   = null;
+let jobs        = {};
+
+/* ── Health ── */
+async function checkHealth() {
+  try {
+    const r = await fetch(`${PROXY_BASE}/api/health`);
+    document.getElementById('hdot').className = 'hdot ' + (r.ok ? 'ok' : 'err');
+    document.getElementById('htext').textContent = r.ok ? 'server ready' : 'server error';
+  } catch {
+    document.getElementById('hdot').className = 'hdot err';
+    document.getElementById('htext').textContent = 'proxy offline';
+  }
+}
+checkHealth();
+setInterval(checkHealth, 30000);
+
+/* ── Tabs ── */
+document.querySelectorAll('.tab').forEach(t =>
+  t.addEventListener('click', () => switchTab(t.dataset.t))
+);
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.t === name));
+  document.querySelectorAll('.tp').forEach(p => p.classList.toggle('on', p.id === 'tp-' + name));
+}
+
+/* ── File drops ── */
+function setupDrop(dzId, inputId, labelId, onFile) {
+  const dz  = document.getElementById(dzId);
+  const inp = document.getElementById(inputId);
+  ['dragover','dragenter'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.add('over'); }));
+  ['dragleave','drop'].forEach(e => dz.addEventListener(e, () => dz.classList.remove('over')));
+  dz.addEventListener('drop', ev => {
+    ev.preventDefault();
+    const f = ev.dataTransfer.files[0];
+    if (f) { inp.files = ev.dataTransfer.files; setFileLabel(labelId, f.name); if (onFile) onFile(f); }
+  });
+  inp.addEventListener('change', () => {
+    if (inp.files[0]) { setFileLabel(labelId, inp.files[0].name); if (onFile) onFile(inp.files[0]); }
+  });
+}
+function setFileLabel(id, name) {
+  document.getElementById(id).textContent = '📄 ' + name;
+  updateSubmitBtn();
+}
+setupDrop('dzImg', 'fImg', 'dzImgF', f => {
+  const stem = f.name.replace(/\.[^.]+$/, '');
+  document.getElementById('outName').placeholder = stem + '_deconv.tif';
+});
+setupDrop('dzPsf', 'fPsf', 'dzPsfF');
+function updateSubmitBtn() {
+  const has = document.getElementById('fImg').files.length > 0;
+  document.getElementById('btnSubmit').disabled = !has;
+  document.getElementById('shint').textContent = has ? 'Ready to submit.' : 'Select an image file to start.';
+}
+
+/* ── PSF modality ── */
+function modalityChanged() {
+  const m = document.getElementById('psfModality').value;
+  document.getElementById('psfConfocal').style.display = m === 'confocal' ? '' : 'none';
+}
+
+function aproxChanged() {
+  const aprox = document.getElementById('aproxEx').checked;
+  document.getElementById('exWlRow').style.display = aprox ? 'none' : '';
+}
+
+/* ── Tiling toggle ── */
+function tilingChanged() {
+  const on = document.getElementById('tilingEnabled').checked;
+  document.getElementById('tilingMargins').style.display = on ? '' : 'none';
+}
+
+/* ── Per-channel wavelength table ── */
+const DEF_WL = [0.405, 0.488, 0.520, 0.561, 0.594, 0.640, 0.680, 0.720];
+
+function rebuildChTable() {
+  const n   = parseInt(document.getElementById('nCh').value) || 1;
+  const wrap = document.getElementById('chTableWrap');
+  if (n <= 1) {
+    wrap.innerHTML = '<p class="dim" style="margin-top:6px">Single channel: uses main PSF settings above.</p>';
+    return;
+  }
+  let h = '<table class="chtable"><thead><tr><th>Ch</th><th>Em λ (µm)</th><th>NA</th><th>n</th></tr></thead><tbody>';
+  for (let i = 0; i < n; i++) {
+    h += `<tr>
+      <td style="color:var(--fg3)">${i}</td>
+      <td><input type="number" id="chem${i}" value="${DEF_WL[i % 8]}" step="0.005"></td>
+      <td><input type="number" id="chna${i}" value="1.20" step="0.05"></td>
+      <td><input type="number" id="chn${i}"  value="1.33" step="0.01"></td>
+    </tr>`;
+  }
+  wrap.innerHTML = h + '</tbody></table>';
+}
+rebuildChTable();
+
+/* ── Preset helpers ── */
+function applyEmPreset(wl, na, n) {
+  document.getElementById('emWl').value = wl;
+  document.getElementById('emNa').value = na;
+  document.getElementById('emN').value  = n;
+}
+function radio(name) { return document.querySelector(`input[name="${name}"]:checked`)?.value; }
+function num(id)  { return parseFloat(document.getElementById(id).value) || 0; }
+function int_(id) { return parseInt(document.getElementById(id).value)   || 0; }
+function str(id)  { return document.getElementById(id).value.trim(); }
+
+/* ── Build config (only user-facing values; all other defaults in handler.py) ── */
+function buildConfig() {
+  const modality = str('psfModality');
+
+  const isConfocal  = modality === 'confocal';
+  const aproxEx     = isConfocal && document.getElementById('aproxEx').checked;
+
+  const psf = {
+    modality,
+    dz: num('psfDz'), dy: num('psfDy'), dx: num('psfDx'),
+    em_sym:           radio('emSym') === '1',
+    em_wl:            num('emWl'),
+    em_na:            num('emNa'),
+    em_n:             num('emN'),
+    em_sph_coef:      num('emSphCoef'),
+    aperture_size:    isConfocal ? num('apSize') : 1.0,
+    aprox_excitation: aproxEx,
+    ex_wl:            (!aproxEx && isConfocal) ? num('exWl') : num('emWl'),
+  };
+
+  // Per-channel PSF overrides
+  const nCh = parseInt(document.getElementById('nCh').value) || 1;
+  const chPsf = {};
+  for (let i = 0; i < nCh; i++) {
+    const el = document.getElementById(`chem${i}`);
+    if (el) {
+      chPsf[String(i)] = {
+        ...psf,
+        em_wl: num(`chem${i}`),
+        em_na: num(`chna${i}`),
+        em_n:  num(`chn${i}`),
+      };
+    }
+  }
+
+  const tiling = document.getElementById('tilingEnabled').checked;
+
+  return {
+    dim_order:      str('dimOrder'),
+    channel_sel:    radio('chSel') === 'all' ? 'all' : String(int_('chIdx')),
+    all_timepoints: document.getElementById('allTp').checked,
+    timepoint:      int_('tpIdx'),
+    psf,
+    channel_psf_params: nCh > 1 ? chPsf : undefined,
+    tiling_enabled: tiling,
+    margin_z: tiling ? int_('marginZ') : 0,
+    margin_y: tiling ? int_('marginY') : 0,
+    margin_x: tiling ? int_('marginX') : 0,
+    pad_z: int_('padZ'),
+    pad_y: int_('padY'),
+    pad_x: int_('padX'),
+    iters:     int_('iters'),
+    wiener:    parseFloat(str('wiener')),
+    otf_thres: parseFloat(str('otfThres')),
+    alpha:     parseFloat(str('alpha')),
+    gamma:     parseFloat(str('gamma')),
+    upsample:  num('upsample'),
+    bit_depth: radio('bitDepth'),
+    output_filename: str('outName') || undefined,
+  };
+}
+
+/* ── Submit ── */
+function toBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = () => res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+async function submitJob() {
+  const imgFile = document.getElementById('fImg').files[0];
+  if (!imgFile) { toast('Select an image file.', 'err'); return; }
+
+  try {
+    setOverlay(true, 'Reading image… (large files may take a moment)');
+    const image_b64 = await toBase64(imgFile);
+
+    const psfFile = document.getElementById('fPsf').files[0];
+    let psf_b64 = null;
+    if (psfFile) {
+      setOverlay(true, 'Reading PSF…');
+      psf_b64 = await toBase64(psfFile);
+    }
+
+    const cfg  = buildConfig();
+    const stem = imgFile.name.replace(/\.[^.]+$/, '');
+    cfg.output_filename = cfg.output_filename || (stem + '_deconv.tif');
+
+    setOverlay(true, 'Submittin…');
+    const r = await fetch(`${PROXY_BASE}/api/run`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ input: { image_b64, psf_b64, config: cfg } }),
+    });
+
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    if (data.error) throw new Error(data.error);
+
+    const jid = data.id;
+    toast('Job submitted: ' + jid.slice(0, 8), 'ok');
+    jobs[jid] = {
+      id: jid, name: cfg.output_filename,
+      state: 'pending', progress: 0,
+      output: null, error: null,
+      created_at: Date.now() / 1000,
+    };
+    selectedJob = jid;
+    renderQueue();
+    switchTab('detail');
+    startPolling();
+
+  } catch(e) {
+    toast('Submit failed: ' + e.message, 'err');
+  } finally {
+    setOverlay(false);
+  }
+}
+
+/* ── Queue ── */
+function renderQueue() {
+  const list = document.getElementById('qlist');
+  const arr  = Object.values(jobs).sort((a, b) => b.created_at - a.created_at);
+  document.getElementById('qcount').textContent = arr.length;
+
+  if (!arr.length) {
+    list.innerHTML = '<div class="qempty">No jobs yet.</div>';
+    return;
+  }
+
+  list.innerHTML = arr.map(j => `
+    <div class="jcard ${j.id === selectedJob ? 'sel' : ''}" onclick="selectJob('${j.id}')">
+      <div class="jcard-top">
+        <span class="jname" title="${j.id}">${j.name || j.id.slice(0, 18)}</span>
+        <span class="badge b${j.state[0]}">${j.state}</span>
+      </div>
+      <div class="jmeta">${j.id.slice(0, 8)} · ${ago(j.created_at)}</div>
+      <div class="jprog"><div class="jprogbar" style="width:${j.progress}%"></div></div>
+      <div class="jbtns">
+        ${j.state === 'done' && j.output?.result_b64
+          ? `<button class="btn-xs dl" onclick="event.stopPropagation();dlResult('${j.id}')">⬇ Download</button>`
+          : ''}
+        <button class="btn-xs rm" onclick="event.stopPropagation();delJob('${j.id}')">× Remove</button>
+      </div>
+    </div>`).join('');
+
+  if (selectedJob && jobs[selectedJob]) renderDetail(jobs[selectedJob]);
+}
+
+/* ── Job detail ── */
+function selectJob(jid) {
+  selectedJob = jid;
+  switchTab('detail');
+  renderQueue();
+}
+
+function renderDetail(job) {
+  const pct = job.state === 'done' ? 100 : job.state === 'running' ? 50 : 5;
+  document.getElementById('detailWrap').innerHTML = `
+    <div class="jdetail">
+      <div class="jdetail-head">
+        <span class="jd-name">${job.name || job.id}</span>
+        <span class="badge b${job.state[0]}">${job.state}</span>
+        ${job.state === 'done' && job.output?.result_b64
+          ? `<button class="btn-xs dl" onclick="dlResult('${job.id}')">⬇ Download result</button>`
+          : ''}
+      </div>
+      <div class="prog-wrap">
+        <div class="progbar"><div class="progfill" style="width:${pct}%"></div></div>
+        <div class="proglbl">${job.state}</div>
+      </div>
+      ${job.error ? `<p style="color:var(--err);font-family:var(--mono);font-size:11px;margin-bottom:10px;padding:7px;background:rgba(240,86,106,.06);border:1px solid rgba(240,86,106,.2);border-radius:4px">${esc(String(job.error))}</p>` : ''}
+      <div class="logbox">
+        <p style="color:var(--fg3);font-style:italic">
+          ${job.state === 'pending' ? 'Waiting for GPU worker…'
+          : job.state === 'running' ? 'Processing on GPU…'
+          : job.state === 'done'    ? 'Complete. Click Download above.'
+          : 'Job ended.'}
+        </p>
+      </div>
+    </div>`;
+}
+
+/* ── Download ── */
+async function dlResult(jid) {
+  const job = jobs[jid];
+  if (!job?.output?.result_b64) { toast('Result not available.', 'err'); return; }
+  try {
+    const bytes = Uint8Array.from(atob(job.output.result_b64), c => c.charCodeAt(0));
+    const blob  = new Blob([bytes], { type: 'image/tiff' });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a');
+    a.href     = url;
+    a.download = job.output.filename || job.name || 'result.tif';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('Downloaded: ' + a.download, 'ok');
+  } catch(e) { toast('Download failed: ' + e.message, 'err'); }
+}
+
+function delJob(jid) {
+  delete jobs[jid];
+  if (selectedJob === jid) {
+    selectedJob = null;
+    document.getElementById('detailWrap').innerHTML =
+      '<p style="color:var(--fg3);font-family:var(--mono);font-size:12px;padding:40px 0">Job removed.</p>';
+  }
+  renderQueue();
+}
+
+/* ── Polling ── */
+async function pollJobs() {
+  for (const [jid, job] of Object.entries(jobs)) {
+    if (job.state === 'done' || job.state === 'failed' || job.state === 'cancelled') continue;
+    try {
+      const r = await fetch(`${PROXY_BASE}/api/status/${jid}`);
+      if (!r.ok) continue;
+      const data = await r.json();
+      const s = (data.status || '').toUpperCase();
+      if (s === 'COMPLETED') {
+        job.state    = 'done';
+        job.progress = 100;
+        job.output   = data.output || {};
+        if (job.output.error) { job.state = 'failed'; job.error = job.output.error; }
+        else toast('✓ ' + (job.name || jid.slice(0, 8)) + ' complete!', 'ok');
+      } else if (s === 'FAILED') {
+        job.state = 'failed';
+        job.error = data.error || 'Unknown error';
+      } else if (s === 'IN_PROGRESS') {
+        job.state = 'running'; job.progress = 50;
+      } else {
+        job.state = 'pending'; job.progress = 5;
+      }
+    } catch {}
+  }
+  renderQueue();
+}
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollJobs, 3000);
+}
+startPolling();
+
+/* ── Utilities ── */
+function ago(ts) {
+  const s = Math.floor(Date.now() / 1000 - ts);
+  return s < 60 ? s + 's ago' : s < 3600 ? Math.floor(s / 60) + 'm ago' : Math.floor(s / 3600) + 'h ago';
+}
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function setOverlay(on, txt) {
+  document.getElementById('overlay').classList.toggle('on', on);
+  if (txt) document.getElementById('overlayTxt').textContent = txt;
+}
+let _tt;
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast on ' + (type === 'ok' ? 'ok' : type === 'err' ? 'err' : '');
+  clearTimeout(_tt);
+  _tt = setTimeout(() => t.classList.remove('on'), 3500);
+}
+</script>
+</body>
+</html>
