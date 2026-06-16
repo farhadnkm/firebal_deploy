@@ -4,6 +4,6 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "python proxy.py"
+    "startCommand": "python3 proxy.py"
   }
 }
