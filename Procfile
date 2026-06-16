@@ -1,1 +1,1 @@
-web: python proxy.py
+web: python3 proxy.py
