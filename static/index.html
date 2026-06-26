@@ -699,7 +699,7 @@ function renderQueue() {
       <div class="jmeta">${j.id.slice(0, 8)} · ${ago(j.created_at)}</div>
       <div class="jprog"><div class="jprogbar" style="width:${j.progress}%"></div></div>
       <div class="jbtns">
-        ${j.state === 'done' && j.output?.result_b64
+        ${j.state === 'done' && hasResult(j)
           ? `<button class="btn-xs dl" onclick="event.stopPropagation();dlResult('${j.id}')">⬇ Download</button>`
           : ''}
         <button class="btn-xs rm" onclick="event.stopPropagation();delJob('${j.id}')">× Remove</button>
@@ -723,7 +723,7 @@ function renderDetail(job) {
       <div class="jdetail-head">
         <span class="jd-name">${job.name || job.id}</span>
         <span class="badge b${job.state[0]}">${job.state}</span>
-        ${job.state === 'done' && job.output?.result_b64
+        ${job.state === 'done' && hasResult(job)
           ? `<button class="btn-xs dl" onclick="dlResult('${job.id}')">⬇ Download result</button>`
           : ''}
       </div>
@@ -744,19 +744,44 @@ function renderDetail(job) {
 }
 
 /* ── Download ── */
+function hasResult(job) {
+  return !!(job?.output?.result_b64 || job?.output?.result_key);
+}
+
 async function dlResult(jid) {
   const job = jobs[jid];
-  if (!job?.output?.result_b64) { toast('Result not available.', 'err'); return; }
+  if (!hasResult(job)) { toast('Result not available.', 'err'); return; }
+
+  const filename = job.output.filename || job.name || 'result.tif';
+
   try {
-    const bytes = Uint8Array.from(atob(job.output.result_b64), c => c.charCodeAt(0));
-    const blob  = new Blob([bytes], { type: 'image/tiff' });
-    const url   = URL.createObjectURL(blob);
-    const a     = document.createElement('a');
-    a.href     = url;
-    a.download = job.output.filename || job.name || 'result.tif';
-    a.click();
-    URL.revokeObjectURL(url);
-    toast('Downloaded: ' + a.download, 'ok');
+    if (job.output.result_key) {
+      toast('Requesting download link…', 'ok');
+      const r = await fetch(`${PROXY_BASE}/api/download-url`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ key: job.output.result_key }),
+      });
+      const data = await r.json();
+      if (!r.ok || data.error) {
+        throw new Error(data.error || `download-url request failed (${r.status})`);
+      }
+      const a = document.createElement('a');
+      a.href     = data.download_url;
+      a.download = filename;
+      a.click();
+      toast('Downloading: ' + filename, 'ok');
+    } else {
+      const bytes = Uint8Array.from(atob(job.output.result_b64), c => c.charCodeAt(0));
+      const blob  = new Blob([bytes], { type: 'image/tiff' });
+      const url   = URL.createObjectURL(blob);
+      const a     = document.createElement('a');
+      a.href     = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('Downloaded: ' + filename, 'ok');
+    }
   } catch(e) { toast('Download failed: ' + e.message, 'err'); }
 }
 
