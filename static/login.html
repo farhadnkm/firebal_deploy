@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FIREBAL Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg1:#0d1118; --bg2:#151c2b; --bg3:#1a2336;
+  --fg:#e6ecff; --muted:#8da0c7; --muter:#5b6e95;
+  --accent:#59f2c9; --accent2:#3d7cff; --warn:#f1c75a; --err:#ff6b7f;
+  --card:#101623; --border:#2a3550;
+  --mono:'IBM Plex Mono',monospace; --sans:'Space Grotesk',sans-serif;
+  --r:10px;
+}
+* { box-sizing:border-box; margin:0; padding:0 }
+html,body { height:100% }
+body {
+  font-family:var(--sans); color:var(--fg);
+  background:
+    radial-gradient(900px 600px at 10% 10%, rgba(61,124,255,0.12), transparent 60%),
+    radial-gradient(900px 700px at 90% 20%, rgba(89,242,201,0.12), transparent 55%),
+    linear-gradient(135deg, var(--bg1), var(--bg2) 45%, var(--bg3));
+  display:flex; align-items:center; justify-content:center; padding:28px;
+}
+.shell {
+  width:min(980px, 96vw); display:grid; grid-template-columns:1.1fr .9fr; gap:24px;
+}
+.hero {
+  padding:28px; border:1px solid var(--border); border-radius:var(--r);
+  background:linear-gradient(180deg, rgba(16,22,35,.9), rgba(16,22,35,.65));
+  box-shadow:0 20px 60px rgba(0,0,0,.35);
+  position:relative; overflow:hidden;
+}
+.hero::after {
+  content:""; position:absolute; inset:0; background:
+    linear-gradient(120deg, rgba(61,124,255,.08), transparent 40%),
+    linear-gradient(300deg, rgba(89,242,201,.08), transparent 45%);
+  pointer-events:none;
+}
+.brand {
+  font-family:var(--mono); font-size:12px; letter-spacing:.22em; color:var(--muted);
+}
+.title {
+  margin-top:12px; font-size:34px; line-height:1.1; font-weight:600;
+}
+.subtitle {
+  margin-top:10px; color:var(--muted); font-size:14px; max-width:44ch;
+}
+.taglist { display:flex; gap:8px; margin-top:18px; flex-wrap:wrap }
+.tag {
+  font-family:var(--mono); font-size:10px; color:var(--muter);
+  border:1px solid var(--border); padding:4px 8px; border-radius:999px;
+}
+.panel {
+  padding:24px; border:1px solid var(--border); border-radius:var(--r);
+  background:rgba(16,22,35,.9); box-shadow:0 20px 60px rgba(0,0,0,.35);
+  animation:rise .55s ease-out;
+}
+@keyframes rise { from { transform:translateY(10px); opacity:.8 } to { transform:translateY(0); opacity:1 } }
+.field { margin-bottom:14px }
+label { display:block; color:var(--muter); font-size:12px; margin-bottom:6px }
+input {
+  width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border);
+  background:#0f1523; color:var(--fg); font-family:var(--mono); font-size:12px;
+  outline:none; transition:border-color .15s;
+}
+input:focus { border-color:var(--accent2) }
+.actions { display:flex; align-items:center; gap:10px; margin-top:6px }
+button {
+  border:none; background:linear-gradient(90deg, var(--accent2), var(--accent));
+  color:#0b0f16; font-weight:600; padding:10px 14px; border-radius:8px;
+  cursor:pointer; font-family:var(--mono); font-size:12px;
+}
+button:disabled { opacity:.5; cursor:not-allowed }
+.hint { color:var(--muter); font-size:11px }
+.err { color:var(--err); font-size:12px; margin-top:8px; display:none }
+.ok { color:var(--accent); font-size:12px; margin-top:8px; display:none }
+@media (max-width:860px) {
+  .shell { grid-template-columns:1fr }
+}
+</style>
+</head>
+<body>
+  <div class="shell">
+    <section class="hero">
+      <div class="title">Authenticate to launch GPU deconvolution</div>
+      <div class="subtitle">Session-based access protects your API calls and keeps processing jobs private. Sign in to continue.</div>
+      <div class="taglist">
+        <span class="tag">SESSION COOKIE</span>
+        <span class="tag">RUNPOD PROXY</span>
+        <span class="tag">CUDA PIPELINE</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <form id="loginForm">
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <div class="actions">
+          <button id="loginBtn" type="submit">Sign in</button>
+          <span class="hint">Demo: test_user / test</span>
+        </div>
+        <div id="ok" class="ok">Signed in. Redirecting…</div>
+        <div id="err" class="err">Login failed.</div>
+      </form>
+    </section>
+  </div>
+
+<script>
+const form = document.getElementById('loginForm');
+const err = document.getElementById('err');
+const ok = document.getElementById('ok');
+const btn = document.getElementById('loginBtn');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  err.style.display = 'none';
+  ok.style.display = 'none';
+  btn.disabled = true;
+
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+
+  try {
+    const res = await fetch('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ username, password })
+    });
+
+    if (!res.ok) {
+      throw new Error('bad login');
+    }
+
+    ok.style.display = 'block';
+    setTimeout(() => { window.location.href = '/'; }, 350);
+  } catch (e2) {
+    err.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
