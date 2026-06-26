@@ -17,6 +17,7 @@ ENDPOINT_ID     = os.environ["RUNPOD_ENDPOINT_ID"]
 LAB_PASSWORD    = os.environ.get("LAB_PASSWORD", "")
 RUNPOD_BASE     = f"https://api.runpod.ai/v2/{ENDPOINT_ID}"
 HTTPS           = os.environ.get("HTTPS", "false").lower() == "true"
+ON_RAILWAY      = os.environ.get("RAILWAY_ENVIRONMENT") is not None
 
 # ── Object storage (S3-compatible) — large-file upload path ────────────────
 # Optional: only required if you want to support files too large for
@@ -90,7 +91,7 @@ async def check_session(request: Request, call_next):
     session_id = request.cookies.get("session_id")
 
     # Validate session
-    if not session_id or not validate_session(session_id):
+    if not ON_RAILWAY and (not session_id or not validate_session(session_id)):
         # Not authenticated
         if request.url.path.startswith("/api/"):
             # Legacy: allow /api/ with LAB_PASSWORD header/query param
